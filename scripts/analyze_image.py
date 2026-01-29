@@ -52,7 +52,7 @@ def detect_labels(rekognition_client: Any, bucket: str, s3_key: str) -> List[Dic
     response = rekognition_client.detect_labels(
         Image={"S3Object": {"Bucket": bucket, "Name": s3_key}},
         MaxLabels=10,
-        MinConfidence=70.0,
+        MinConfidence=70,  # int (not float)
     )
 
     labels: List[Dict[str, Any]] = []
@@ -65,6 +65,20 @@ def detect_labels(rekognition_client: Any, bucket: str, s3_key: str) -> List[Dic
         )
 
     return labels
+
+
+def convert_floats_to_decimal(value: Any) -> Any:
+    # DynamoDB (boto3) does not support float. Convert all floats recursively.
+    if isinstance(value, float):
+        return Decimal(str(value))
+
+    if isinstance(value, list):
+        return [convert_floats_to_decimal(v) for v in value]
+
+    if isinstance(value, dict):
+        return {k: convert_floats_to_decimal(v) for k, v in value.items()}
+
+    return value
 
 
 def write_to_dynamodb(
@@ -81,8 +95,10 @@ def write_to_dynamodb(
         "branch": branch,
     }
 
+    safe_item = convert_floats_to_decimal(item)
+
     print(f"🧾 Writing results to DynamoDB for {s3_key}")
-    dynamodb_table.put_item(Item=item)
+    dynamodb_table.put_item(Item=safe_item)
 
 
 def main() -> None:
@@ -135,4 +151,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
