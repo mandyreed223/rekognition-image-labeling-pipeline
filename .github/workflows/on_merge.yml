@@ -1,0 +1,39 @@
+name: Rekognition Image Analysis (Main -> Prod)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  analyze-images-prod:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install boto3
+
+      - name: Run image analysis (Prod)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+
+          # Use the PROD table for merges/pushes to main
+          DYNAMODB_TABLE: ${{ secrets.DYNAMODB_TABLE_PROD }}
+
+          # In a push workflow, this is the branch
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: |
+          python scripts/analyze_image.py
